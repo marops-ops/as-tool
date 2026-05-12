@@ -8,6 +8,8 @@ export interface Enhet {
   poststed: string;
   fylke: string;
   fylkekode: string;
+  nace: string;
+  kategori: string;
 }
 
 export type SegmentKey = "ENK" | "SMB" | "MID" | "STOR";
