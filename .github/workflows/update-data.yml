@@ -18,16 +18,15 @@ jobs:
       - name: Installer avhengigheter
         run: pip install requests
 
-      - name: Slett gamle datafiler
-        run: rm -f data/ENK.json data/SMB.json data/MID.json data/STOR.json
-
       - name: Hent data fra Enhetsregisteret
-        run: python scripts/fetch_data.py
+        run: |
+          rm -f data/ENK.json data/SMB.json data/MID.json data/STOR.json
+          python scripts/fetch_data.py
 
       - name: Commit og push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data/
-          git commit -m "auto: oppdater bedriftsdata $(date +'%Y-%m-%d')"
+          git diff --staged --quiet || git commit -m "auto: oppdater bedriftsdata $(date +'%Y-%m-%d')"
           git push
