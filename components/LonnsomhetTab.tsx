@@ -52,7 +52,7 @@ export default function LonnsomhetTab({ enheter }: Props) {
       const gruppe = enheter.slice(i, i + batch);
       await Promise.all(gruppe.map(async (e) => {
         try {
-          const res = await fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${e.orgnr}`);
+          const res = await fetch(`/api/regnskap/${e.orgnr}`);
           if (!res.ok) return;
           const data = await res.json();
           const items = Array.isArray(data) ? data : [data];

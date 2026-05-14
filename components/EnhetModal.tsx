@@ -42,8 +42,8 @@ export default function EnhetModal({ enhet, onClose }: Props) {
     async function hent() {
       try {
         const [regRes, rolleRes] = await Promise.all([
-          fetch(`https://data.brreg.no/regnskapsregisteret/regnskap/${enhet!.orgnr}`),
-          fetch(`https://data.brreg.no/enhetsregisteret/api/enheter/${enhet!.orgnr}/roller`),
+          fetch(`/api/regnskap/${enhet!.orgnr}`),
+          fetch(`/api/roller/${enhet!.orgnr}`),
         ]);
 
         if (regRes.ok) {
