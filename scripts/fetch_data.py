@@ -51,8 +51,8 @@ def last_ned_alle():
     print("Laster ned hele Enhetsregisteret (CSV)...")
     r = requests.get(LASTNED_URL, timeout=300)
     r.raise_for_status()
-    r.encoding = "utf-8"
-    reader = csv.DictReader(io.StringIO(r.text), delimiter=";")
+    innhold = r.content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(innhold, newline=""), delimiter=";")
     enheter = list(reader)
     print(f"  ✓ {len(enheter):,} enheter lastet ned")
     return enheter
@@ -97,7 +97,7 @@ def main():
     for key, cfg in segmenter.items():
         resultat = []
         for e in alle:
-            if e.get("Slettedato"):
+            if e.get("Slettedato", "").strip():
                 continue
             if e.get("Konkurs", "").strip().upper() == "J":
                 continue
