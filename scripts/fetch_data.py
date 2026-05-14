@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import io
+import gzip
 from datetime import datetime
 
 LASTNED_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv"
@@ -51,29 +52,32 @@ def last_ned_alle():
     print("Laster ned hele Enhetsregisteret (CSV)...")
     r = requests.get(LASTNED_URL, timeout=300)
     r.raise_for_status()
-    innhold = r.content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(innhold, newline=""), delimiter=";")
+    innhold = r.content
+    if innhold[:2] == b'\x1f\x8b':
+        innhold = gzip.decompress(innhold)
+    tekst = innhold.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(tekst, newline=""), delimiter=",")
     enheter = list(reader)
     print(f"  ✓ {len(enheter):,} enheter lastet ned")
     return enheter
 
 def parse_enhet(e):
-    kommnr = str(e.get("Forretningsadresse.kommunenummer", "") or "")
+    kommnr = str(e.get("forretningsadresse.kommunenummer", "") or "")
     fylkekode = kommnr[:2] if kommnr else ""
-    ansatte_raw = e.get("Antall ansatte", "")
+    ansatte_raw = e.get("antallAnsatte", "")
     try:
         ansatte = int(ansatte_raw) if ansatte_raw else None
     except ValueError:
         ansatte = None
-    nace_kode = e.get("Næringskode 1", "") or ""
+    nace_kode = e.get("naeringskode1.kode", "") or ""
     return {
-        "orgnr": e.get("Organisasjonsnummer", ""),
-        "navn": e.get("Navn", ""),
-        "form": e.get("Organisasjonsform", ""),
+        "orgnr": e.get("organisasjonsnummer", ""),
+        "navn": e.get("navn", ""),
+        "form": e.get("organisasjonsform.kode", ""),
         "ansatte": ansatte if ansatte is not None else "",
-        "adresse": e.get("Forretningsadresse.adresse", ""),
-        "postnummer": e.get("Forretningsadresse.postnummer", ""),
-        "poststed": e.get("Forretningsadresse.poststed", ""),
+        "adresse": e.get("forretningsadresse.adresse", ""),
+        "postnummer": e.get("forretningsadresse.postnummer", ""),
+        "poststed": e.get("forretningsadresse.poststed", ""),
         "fylke": get_fylke(kommnr),
         "fylkekode": fylkekode,
         "nace": nace_kode,
@@ -97,14 +101,14 @@ def main():
     for key, cfg in segmenter.items():
         resultat = []
         for e in alle:
-            if e.get("Slettedato", "").strip():
+            if e.get("konkurs", "").strip().lower() == "true":
                 continue
-            if e.get("Konkurs", "").strip().upper() == "J":
+            if e.get("underAvvikling", "").strip().lower() == "true":
                 continue
-            form = e.get("Organisasjonsform", "").strip()
+            form = e.get("organisasjonsform.kode", "").strip()
             if form not in cfg["form"]:
                 continue
-            ansatte_raw = e.get("Antall ansatte", "")
+            ansatte_raw = e.get("antallAnsatte", "")
             try:
                 ansatte = int(ansatte_raw) if ansatte_raw else None
             except ValueError:
