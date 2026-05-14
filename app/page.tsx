@@ -22,11 +22,9 @@ const EMPTY: SegmentState = { data: [], state: "idle", oppdatert: "" };
 const PAGE_SIZE = 30;
 
 export default function Home() {
+  const [darkMode, setDarkMode] = useState(true);
   const [segments, setSegments] = useState<Record<SegmentKey, SegmentState>>({
-    ENK: { ...EMPTY },
-    SMB: { ...EMPTY },
-    MID: { ...EMPTY },
-    STOR: { ...EMPTY },
+    ENK: { ...EMPTY }, SMB: { ...EMPTY }, MID: { ...EMPTY }, STOR: { ...EMPTY },
   });
   const [aktiveSegmenter, setAktiveSegmenter] = useState<Set<SegmentKey>>(new Set(["SMB"]));
   const [activeTab, setActiveTab] = useState<"liste" | "region" | "lonnsomhet">("liste");
@@ -35,6 +33,14 @@ export default function Home() {
   const [kategoriFilter, setKategoriFilter] = useState("");
   const [page, setPage] = useState(0);
   const [valgtEnhet, setValgtEnhet] = useState<Enhet | null>(null);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   useEffect(() => {
     async function loadAll() {
@@ -74,10 +80,7 @@ export default function Home() {
     const seen = new Set<string>();
     for (const key of aktiveSegmenter) {
       for (const e of segments[key].data) {
-        if (!seen.has(e.orgnr)) {
-          seen.add(e.orgnr);
-          alle.push(e);
-        }
+        if (!seen.has(e.orgnr)) { seen.add(e.orgnr); alle.push(e); }
       }
     }
     return alle;
@@ -104,21 +107,35 @@ export default function Home() {
   const totalCount = Object.values(segments).reduce((sum, s) => sum + s.data.length, 0);
   const oppdatert = segments.SMB.oppdatert ? new Date(segments.SMB.oppdatert).toLocaleDateString("nb-NO") : null;
 
+  const inputCls = "px-3 py-2 text-sm rounded-lg border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500";
+
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <main className={`min-h-screen ${darkMode ? "bg-gray-950 text-gray-100" : "text-[#31353d]"}`}
+      style={darkMode ? {} : { backgroundColor: "#F1EFE9" }}>
       <div className="max-w-5xl mx-auto px-6 py-10">
 
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-lg font-bold">F</div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-lg">B</div>
             <div>
-              <h1 className="text-lg font-semibold">Audience Segmenter</h1>
-              <p className="text-sm text-gray-500">Folio.no — bedriftslister for Meta & Google Ads</p>
+              <h1 className="text-lg font-semibold">Bedriftstargeting</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Finn bedrifter og lag bedriftslister for Google Ads og SOME-kanaler</p>
             </div>
           </div>
-          {oppdatert && <span className="text-xs text-gray-400">Sist oppdatert {oppdatert}</span>}
+          <div className="flex items-center gap-3">
+            {oppdatert && <span className="text-xs text-gray-400">Sist oppdatert {oppdatert}</span>}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="w-9 h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-center text-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title={darkMode ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
+            >
+              {darkMode ? "☀️" : "🌙"}
+            </button>
+          </div>
         </div>
 
+        {/* Metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
             { label: "Totalt", val: totalCount, sub: "aktive enheter" },
@@ -126,7 +143,8 @@ export default function Home() {
             { label: "Mellomstore", val: segments.SMB.data.length, sub: "1–49 ansatte" },
             { label: "Store", val: segments.MID.data.length + segments.STOR.data.length, sub: "50+ ansatte" },
           ].map((m) => (
-            <div key={m.label} className="bg-white dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div key={m.label} className="rounded-xl p-4 border bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
+              style={darkMode ? {} : { borderColor: "#C6C6B7" }}>
               <p className="text-xs text-gray-500 mb-1">{m.label}</p>
               <p className="text-2xl font-medium">{segments.ENK.state === "loading" ? "…" : m.val.toLocaleString("nb-NO")}</p>
               <p className="text-xs text-gray-400 mt-0.5">{m.sub}</p>
@@ -134,6 +152,7 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Segment cards */}
         <p className="text-xs font-medium text-gray-400 uppercase tracking-widest mb-3">
           Velg segment — klikk for å toggle, kombiner flere
         </p>
@@ -149,19 +168,20 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-5">
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-5"
+          style={darkMode ? {} : { borderColor: "#C6C6B7" }}>
           {([
             { key: "liste", label: "Bedriftsliste" },
             { key: "region", label: "Per region" },
             { key: "lonnsomhet", label: "Lønnsomhet" },
           ] as const).map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === tab.key ? "border-emerald-600 text-emerald-600" : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
+                activeTab === tab.key
+                  ? "border-emerald-600 text-emerald-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}>
               {tab.label}
             </button>
           ))}
@@ -172,21 +192,15 @@ export default function Home() {
             <div className="flex gap-3 mb-4 flex-wrap items-center">
               <div className="relative flex-1 min-w-40">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</span>
-                <input
-                  type="text"
-                  placeholder="Søk navn, poststed, postnr..."
-                  value={search}
+                <input type="text" placeholder="Søk navn, poststed, postnr..." value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-                  className="w-full pl-8 pr-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                  className={`w-full pl-8 pr-4 ${inputCls}`} />
               </div>
-              <select value={fylkeFilter} onChange={(e) => { setFylkeFilter(e.target.value); setPage(0); }}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <select value={fylkeFilter} onChange={(e) => { setFylkeFilter(e.target.value); setPage(0); }} className={inputCls}>
                 <option value="">Alle fylker</option>
                 {allFylker.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
-              <select value={kategoriFilter} onChange={(e) => { setKategoriFilter(e.target.value); setPage(0); }}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <select value={kategoriFilter} onChange={(e) => { setKategoriFilter(e.target.value); setPage(0); }} className={inputCls}>
                 <option value="">Alle bransjer</option>
                 {kategorier.map((k) => <option key={k} value={k}>{k}</option>)}
               </select>
@@ -196,13 +210,8 @@ export default function Home() {
                 className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">↓ Meta</button>
             </div>
 
-            <EnhetTable
-              enheter={filtered}
-              segmentKey={[...aktiveSegmenter].join("+")}
-              page={page}
-              pageSize={PAGE_SIZE}
-              onClickEnhet={setValgtEnhet}
-            />
+            <EnhetTable enheter={filtered} segmentKey={[...aktiveSegmenter].join("+")}
+              page={page} pageSize={PAGE_SIZE} onClickEnhet={setValgtEnhet} />
 
             <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
               <div className="flex items-center gap-3">
@@ -225,7 +234,6 @@ export default function Home() {
         {activeTab === "lonnsomhet" && (
           <LonnsomhetTab enheter={filtered} />
         )}
-
       </div>
 
       <EnhetModal enhet={valgtEnhet} onClose={() => setValgtEnhet(null)} />

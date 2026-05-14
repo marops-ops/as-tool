@@ -12,7 +12,7 @@ export const SEGMENTS: Segment[] = [
   {
     key: "SMB",
     label: "Mellomstore bedrifter",
-    desc: "AS/ANS — 1–49 ansatte ⭐ Folio-kjernemål",
+    desc: "AS/ANS — 1–49 ansatte",
     orgformer: ["AS", "ANS", "DA", "NUF"],
     ansatteFra: 1,
     ansatteTil: 49,
