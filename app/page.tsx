@@ -4,11 +4,10 @@ import { useState, useMemo, useEffect } from "react";
 import { SEGMENTS, FYLKER } from "@/lib/segments";
 import { toCSV, downloadCSV } from "@/lib/fetcher";
 import { Enhet, SegmentKey } from "@/lib/types";
-import SegmentCard from "@/components/SegmentCard";
-import EnhetTable from "@/components/EnhetTable";
 import EnhetModal from "@/components/EnhetModal";
 import RegionList from "@/components/RegionList";
 import LonnsomhetTab from "@/components/LonnsomhetTab";
+import BransjeFilter from "@/components/BransjeFilter";
 
 type LoadState = "idle" | "loading" | "done" | "error";
 
@@ -21,21 +20,8 @@ interface SegmentState {
 const EMPTY: SegmentState = { data: [], state: "idle", oppdatert: "" };
 const PAGE_SIZE = 30;
 
-const LIGHT = {
-  bg: "#F1EFE9",
-  card: "#E8E6DF",
-  border: "#C6C6B7",
-  text: "#31353d",
-  textMuted: "#6b7280",
-};
-
-const DARK = {
-  bg: "#0a0a0a",
-  card: "#111111",
-  border: "#1f2937",
-  text: "#f3f4f6",
-  textMuted: "#9ca3af",
-};
+const LIGHT = { bg: "#F1EFE9", card: "#E8E6DF", border: "#C6C6B7", text: "#31353d", textMuted: "#6b7280" };
+const DARK  = { bg: "#0a0a0a", card: "#111111", border: "#1f2937", text: "#f3f4f6", textMuted: "#9ca3af" };
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(true);
@@ -48,7 +34,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"liste" | "region" | "lonnsomhet">("liste");
   const [search, setSearch] = useState("");
   const [fylkeFilter, setFylkeFilter] = useState("");
-  const [kategoriFilter, setKategoriFilter] = useState("");
+  const [valgteBransjer, setValgteBransjer] = useState<Set<string>>(new Set());
+  const [bransjerInitialisert, setBransjerInitialisert] = useState(false);
   const [page, setPage] = useState(0);
   const [valgtEnhet, setValgtEnhet] = useState<Enhet | null>(null);
 
@@ -60,16 +47,13 @@ export default function Home() {
   useEffect(() => {
     async function loadAll() {
       for (const seg of SEGMENTS) {
-        setSegments((prev) => ({ ...prev, [seg.key]: { ...prev[seg.key], state: "loading" } }));
+        setSegments(prev => ({ ...prev, [seg.key]: { ...prev[seg.key], state: "loading" } }));
         try {
           const res = await fetch(`/api/data/${seg.key}`);
           const json = await res.json();
-          setSegments((prev) => ({
-            ...prev,
-            [seg.key]: { data: json.enheter ?? [], state: "done", oppdatert: json.oppdatert ?? "" },
-          }));
+          setSegments(prev => ({ ...prev, [seg.key]: { data: json.enheter ?? [], state: "done", oppdatert: json.oppdatert ?? "" } }));
         } catch {
-          setSegments((prev) => ({ ...prev, [seg.key]: { ...prev[seg.key], state: "error" } }));
+          setSegments(prev => ({ ...prev, [seg.key]: { ...prev[seg.key], state: "error" } }));
         }
       }
     }
@@ -79,9 +63,9 @@ export default function Home() {
   function toggleSegment(key: SegmentKey) {
     setAktiveSegmenter(prev => {
       const next = new Set(prev);
-      if (next.has(key)) { if (next.size === 1) return next; next.delete(key); }
-      else next.add(key);
+      if (next.has(key)) { if (next.size === 1) return next; next.delete(key); } else next.add(key);
       setPage(0);
+      setBransjerInitialisert(false);
       return next;
     });
   }
@@ -97,20 +81,27 @@ export default function Home() {
     return alle;
   }, [aktiveSegmenter, segments]);
 
-  const kategorier = useMemo(() => {
-    const s = new Set(kombinertData.map((e) => e.kategori).filter(Boolean));
-    return [...s].sort();
+  const tilgjengeligeBransjer = useMemo(() => {
+    const s = new Set(kombinertData.map(e => e.kategori).filter(Boolean));
+    return s;
   }, [kombinertData]);
+
+  useEffect(() => {
+    if (!bransjerInitialisert && tilgjengeligeBransjer.size > 0) {
+      setValgteBransjer(new Set(tilgjengeligeBransjer));
+      setBransjerInitialisert(true);
+    }
+  }, [tilgjengeligeBransjer, bransjerInitialisert]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return kombinertData.filter((e) => {
+    return kombinertData.filter(e => {
       const matchQ = !q || e.navn.toLowerCase().includes(q) || e.poststed.toLowerCase().includes(q) || e.postnummer.includes(q);
       const matchF = !fylkeFilter || e.fylke === fylkeFilter;
-      const matchK = !kategoriFilter || e.kategori === kategoriFilter;
+      const matchK = valgteBransjer.size === 0 || valgteBransjer.has(e.kategori);
       return matchQ && matchF && matchK;
     });
-  }, [kombinertData, search, fylkeFilter, kategoriFilter]);
+  }, [kombinertData, search, fylkeFilter, valgteBransjer]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -119,7 +110,6 @@ export default function Home() {
   const oppdatert = segments.SMB.oppdatert ? new Date(segments.SMB.oppdatert).toLocaleDateString("nb-NO") : null;
 
   const s = {
-    main: { backgroundColor: theme.bg, color: theme.text, minHeight: "100vh" },
     card: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "1rem" },
     input: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "8px 12px", color: theme.text, fontSize: 14, outline: "none" },
     btnGray: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "6px 12px", color: theme.text, fontSize: 14, cursor: "pointer" },
@@ -129,7 +119,7 @@ export default function Home() {
   };
 
   return (
-    <main style={s.main}>
+    <main style={{ backgroundColor: theme.bg, color: theme.text, minHeight: "100vh" }}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
 
         {/* Header */}
@@ -143,8 +133,7 @@ export default function Home() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {oppdatert && <span style={{ fontSize: 12, color: theme.textMuted }}>Sist oppdatert {oppdatert}</span>}
-            <button onClick={() => setDarkMode(!darkMode)}
-              style={{ ...s.btnGray, width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+            <button onClick={() => setDarkMode(!darkMode)} style={{ ...s.btnGray, width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
               {darkMode ? "☀️" : "🌙"}
             </button>
           </div>
@@ -157,7 +146,7 @@ export default function Home() {
             { label: "ENK", val: segments.ENK.data.length, sub: "enkeltmannsforetak" },
             { label: "Mellomstore", val: segments.SMB.data.length, sub: "1–49 ansatte" },
             { label: "Store", val: segments.MID.data.length + segments.STOR.data.length, sub: "50+ ansatte" },
-          ].map((m) => (
+          ].map(m => (
             <div key={m.label} style={s.card}>
               <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 4 }}>{m.label}</div>
               <div style={{ fontSize: 24, fontWeight: 500, color: theme.text }}>{segments.ENK.state === "loading" ? "…" : m.val.toLocaleString("nb-NO")}</div>
@@ -173,10 +162,9 @@ export default function Home() {
 
         {/* Segment cards */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 32 }}>
-          {SEGMENTS.map((seg) => (
+          {SEGMENTS.map(seg => (
             <div key={seg.key} onClick={() => toggleSegment(seg.key)} style={{
-              ...s.card,
-              cursor: "pointer",
+              ...s.card, cursor: "pointer",
               border: aktiveSegmenter.has(seg.key) ? `2px solid #059669` : `1px solid ${theme.border}`,
               transition: "border-color 0.15s",
             }}>
@@ -195,7 +183,7 @@ export default function Home() {
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${theme.border}`, marginBottom: 20 }}>
-          {([{ key: "liste", label: "Bedriftsliste" }, { key: "region", label: "Per region" }, { key: "lonnsomhet", label: "Lønnsomhet" }] as const).map((tab) => (
+          {([{ key: "liste", label: "Bedriftsliste" }, { key: "region", label: "Per region" }, { key: "lonnsomhet", label: "Lønnsomhet" }] as const).map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
               padding: "8px 16px", fontSize: 14, fontWeight: 500, cursor: "pointer",
               background: "none", border: "none", borderBottom: activeTab === tab.key ? "2px solid #059669" : "2px solid transparent",
@@ -206,20 +194,17 @@ export default function Home() {
 
         {activeTab === "liste" && (
           <>
+            {/* Søk + fylke + eksport */}
             <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
               <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
                 <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: theme.textMuted }}>⌕</span>
                 <input type="text" placeholder="Søk navn, poststed, postnr..." value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+                  onChange={e => { setSearch(e.target.value); setPage(0); }}
                   style={{ ...s.input, width: "100%", paddingLeft: 32 }} />
               </div>
-              <select value={fylkeFilter} onChange={(e) => { setFylkeFilter(e.target.value); setPage(0); }} style={s.input}>
+              <select value={fylkeFilter} onChange={e => { setFylkeFilter(e.target.value); setPage(0); }} style={s.input}>
                 <option value="">Alle fylker</option>
-                {allFylker.map((f) => <option key={f} value={f}>{f}</option>)}
-              </select>
-              <select value={kategoriFilter} onChange={(e) => { setKategoriFilter(e.target.value); setPage(0); }} style={s.input}>
-                <option value="">Alle bransjer</option>
-                {kategorier.map((k) => <option key={k} value={k}>{k}</option>)}
+                {allFylker.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
               <button onClick={() => downloadCSV(toCSV(filtered), `${date}_utvalg.csv`)}
                 style={{ backgroundColor: "#059669", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ CSV</button>
@@ -227,12 +212,23 @@ export default function Home() {
                 style={{ backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ Meta</button>
             </div>
 
+            {/* Bransjefilter */}
+            {bransjerInitialisert && (
+              <BransjeFilter
+                tilgjengelige={tilgjengeligeBransjer}
+                valgte={valgteBransjer}
+                onChange={next => { setValgteBransjer(next); setPage(0); }}
+                theme={theme}
+              />
+            )}
+
+            {/* Tabell */}
             <div style={s.table}>
               <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <thead>
                   <tr>
-                    {["Navn", "Form", "Ansatte", "Poststed", "Fylke", "Bransje"].map((h, i) => (
-                      <th key={h} style={{ ...s.th, width: ["28%","8%","7%","18%","15%","24%"][i] }}>{h}</th>
+                    {[["Navn","28%"],["Form","8%"],["Ansatte","7%"],["Poststed","18%"],["Fylke","15%"],["Bransje","24%"]].map(([h,w]) => (
+                      <th key={h} style={{ ...s.th, width: w }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
