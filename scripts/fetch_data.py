@@ -161,7 +161,7 @@ def main():
 
     for key, orgformer, fra, til in segments:
         path = f"data/{key}.json"
-        if os.path.exists(path):
+        if False:  # resume disabled
             print(f"\n⏭  {key} — allerede lagret, hopper over")
             continue
         data = fetch_segment(key, orgformer, fra, til)
