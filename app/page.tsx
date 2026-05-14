@@ -125,7 +125,7 @@ export default function Home() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#059669", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 18 }}>B</div>
+            <img src={darkMode ? "/logo_dark.png" : "/logo_light.png"} alt="AmiBase" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "contain" }} />
             <div>
               <div style={{ fontSize: 18, fontWeight: 600, color: theme.text }}>AmiBase</div>
               <div style={{ fontSize: 13, color: theme.textMuted }}>Bedriftstargeting gjort enkelt</div>
