@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { BRANSJE_GRUPPER } from "@/lib/bransjer";
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export default function BransjeFilter({ tilgjengelige, valgte, onChange, theme }: Props) {
+  const [hoverGruppe, setHoverGruppe] = useState<string | null>(null);
+
   const aktiveGrupper = BRANSJE_GRUPPER.filter(g =>
     g.kategorier.some(k => tilgjengelige.has(k))
   );
@@ -33,6 +36,11 @@ export default function BransjeFilter({ tilgjengelige, valgte, onChange, theme }
       if (alleValgt) next.delete(k); else next.add(k);
     }
     onChange(next);
+  }
+
+  function kunDenne(gruppe: typeof BRANSJE_GRUPPER[0]) {
+    const aktiveIGruppe = new Set(gruppe.kategorier.filter(k => tilgjengelige.has(k)));
+    onChange(aktiveIGruppe);
   }
 
   function toggleAlle() {
@@ -67,12 +75,16 @@ export default function BransjeFilter({ tilgjengelige, valgte, onChange, theme }
           if (!aktiveKat.length) return null;
           const alleIGruppeValgt = aktiveKat.every(k => valgte.has(k));
           const noenIGruppeValgt = aktiveKat.some(k => valgte.has(k));
+          const erHover = hoverGruppe === gruppe.label;
 
           return (
             <div key={gruppe.label} style={{ breakInside: "avoid", marginBottom: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, cursor: "pointer" }}
-                onClick={() => toggleGruppe(gruppe)}>
-                <div style={{
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, cursor: "pointer" }}
+                onMouseEnter={() => setHoverGruppe(gruppe.label)}
+                onMouseLeave={() => setHoverGruppe(null)}
+              >
+                <div onClick={() => toggleGruppe(gruppe)} style={{
                   width: 12, height: 12, borderRadius: 3, flexShrink: 0,
                   border: `1.5px solid ${noenIGruppeValgt ? "#059669" : theme.border}`,
                   backgroundColor: alleIGruppeValgt ? "#059669" : noenIGruppeValgt ? "#d1fae5" : "transparent",
@@ -81,9 +93,17 @@ export default function BransjeFilter({ tilgjengelige, valgte, onChange, theme }
                   {alleIGruppeValgt && <span style={{ color: "white", fontSize: 8, lineHeight: 1 }}>✓</span>}
                   {noenIGruppeValgt && !alleIGruppeValgt && <span style={{ color: "#059669", fontSize: 8, lineHeight: 1 }}>–</span>}
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: theme.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                <span onClick={() => toggleGruppe(gruppe)} style={{ fontSize: 10, fontWeight: 700, color: theme.text, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   {gruppe.label}
                 </span>
+                {erHover && (
+                  <button
+                    onClick={e => { e.stopPropagation(); kunDenne(gruppe); }}
+                    style={{ fontSize: 10, color: "#059669", background: "none", border: "none", cursor: "pointer", fontWeight: 500, marginLeft: 4, whiteSpace: "nowrap" }}
+                  >
+                    kun denne
+                  </button>
+                )}
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 3, paddingLeft: 2 }}>

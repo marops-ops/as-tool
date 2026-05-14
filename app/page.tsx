@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { SEGMENTS, FYLKER } from "@/lib/segments";
-import { toCSV, downloadCSV } from "@/lib/fetcher";
+import { toCSV, toLinkedInCSV, downloadCSV } from "@/lib/fetcher";
 import { Enhet, SegmentKey } from "@/lib/types";
 import EnhetModal from "@/components/EnhetModal";
 import RegionList from "@/components/RegionList";
@@ -24,7 +24,7 @@ const LIGHT = { bg: "#F1EFE9", card: "#E8E6DF", border: "#C6C6B7", text: "#31353
 const DARK  = { bg: "#0a0a0a", card: "#111111", border: "#1f2937", text: "#f3f4f6", textMuted: "#9ca3af" };
 
 export default function Home() {
-  const [darkMode, setDarkMode] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
   const theme = darkMode ? DARK : LIGHT;
 
   const [segments, setSegments] = useState<Record<SegmentKey, SegmentState>>({
@@ -127,8 +127,8 @@ export default function Home() {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: "#059669", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 700, fontSize: 18 }}>B</div>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 600, color: theme.text }}>Bedriftstargeting</div>
-              <div style={{ fontSize: 13, color: theme.textMuted }}>Finn bedrifter og lag bedriftslister for Google Ads og SOME-kanaler</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: theme.text }}>AmiBase</div>
+              <div style={{ fontSize: 13, color: theme.textMuted }}>Bedriftstargeting gjort enkelt</div>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -210,6 +210,8 @@ export default function Home() {
                 style={{ backgroundColor: "#059669", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ CSV</button>
               <button onClick={() => downloadCSV(toCSV(filtered, true), `${date}_utvalg_meta.csv`)}
                 style={{ backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ Meta</button>
+              <button onClick={() => downloadCSV(toLinkedInCSV(filtered), `${date}_utvalg_linkedin.csv`)}
+                style={{ backgroundColor: "#0a66c2", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ LinkedIn</button>
             </div>
 
             {/* Bransjefilter */}

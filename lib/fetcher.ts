@@ -1,5 +1,4 @@
 import { Enhet } from "./types";
-import { FYLKER } from "./segments";
 
 export async function fetchSegment(): Promise<Enhet[]> {
   return [];
@@ -24,6 +23,15 @@ export function toCSV(rows: Enhet[], meta = false): string {
     lines.push(
       headers.map((k) => `"${String(r[k as keyof Enhet] ?? "").replace(/"/g, '""')}"`).join(",")
     );
+  }
+  return lines.join("\n");
+}
+
+export function toLinkedInCSV(rows: Enhet[]): string {
+  const headers = ["companyname"];
+  const lines = [headers.join(",")];
+  for (const r of rows) {
+    lines.push(`"${r.navn.replace(/"/g, '""')}"`);
   }
   return lines.join("\n");
 }

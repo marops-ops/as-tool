@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Bedriftstargeting",
-  description: "Finn bedrifter og lag bedriftslister for Google Ads og SOME-kanaler",
+  title: "AmiBase",
+  description: "Bedriftstargeting gjort enkelt",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
