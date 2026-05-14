@@ -265,8 +265,8 @@ export default function Home() {
           </>
         )}
 
-        {activeTab === "region" && <RegionList enheter={kombinertData} segmentKey={[...aktiveSegmenter].join("+")} />}
-        {activeTab === "lonnsomhet" && <LonnsomhetTab enheter={filtered} />}
+        {activeTab === "region" && <RegionList enheter={kombinertData} segmentKey={[...aktiveSegmenter].join("+")} theme={theme} />}
+        {activeTab === "lonnsomhet" && <LonnsomhetTab enheter={filtered} theme={theme} />}
       </div>
 
       <EnhetModal enhet={valgtEnhet} onClose={() => setValgtEnhet(null)} />

@@ -5,9 +5,16 @@ import { toCSV, downloadCSV } from "@/lib/fetcher";
 interface Props {
   enheter: Enhet[];
   segmentKey: string;
+  theme: {
+    bg: string;
+    card: string;
+    border: string;
+    text: string;
+    textMuted: string;
+  };
 }
 
-export default function RegionList({ enheter, segmentKey }: Props) {
+export default function RegionList({ enheter, segmentKey, theme }: Props) {
   const counts: Record<string, number> = {};
   for (const e of enheter) {
     if (e.fylke) counts[e.fylke] = (counts[e.fylke] ?? 0) + 1;
@@ -23,30 +30,26 @@ export default function RegionList({ enheter, segmentKey }: Props) {
   }
 
   if (!sorted.length) {
-    return <div className="text-center py-12 text-gray-400 text-sm">Ingen data lastet ennå</div>;
+    return <div style={{ textAlign: "center", padding: "48px 0", color: theme.textMuted, fontSize: 14 }}>Ingen data lastet ennå</div>;
   }
 
   return (
-    <div className="space-y-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {sorted.map(([fylke, count]) => (
-        <div
-          key={fylke}
-          className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 group"
+        <div key={fylke} style={{
+          display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+          backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 10,
+        }}
+          onMouseEnter={e => (e.currentTarget.querySelector(".csv-btn") as HTMLElement)?.style.setProperty("opacity", "1")}
+          onMouseLeave={e => (e.currentTarget.querySelector(".csv-btn") as HTMLElement)?.style.setProperty("opacity", "0")}
         >
-          <div className="w-32 flex-shrink-0 text-sm text-gray-900 dark:text-gray-100">{fylke}</div>
-          <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full bg-emerald-500"
-              style={{ width: `${(count / max) * 100}%` }}
-            />
+          <div style={{ width: 120, flexShrink: 0, fontSize: 14, color: theme.text }}>{fylke}</div>
+          <div style={{ flex: 1, height: 8, backgroundColor: theme.bg, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(count / max) * 100}%`, backgroundColor: "#059669", borderRadius: 4 }} />
           </div>
-          <div className="w-16 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
-            {count.toLocaleString("nb-NO")}
-          </div>
-          <button
-            onClick={() => exportRegion(fylke)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-          >
+          <div style={{ width: 60, textAlign: "right", fontSize: 14, fontWeight: 500, color: theme.text }}>{count.toLocaleString("nb-NO")}</div>
+          <button className="csv-btn" onClick={() => exportRegion(fylke)}
+            style={{ opacity: 0, transition: "opacity 0.15s", fontSize: 12, color: "#059669", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>
             CSV ↓
           </button>
         </div>

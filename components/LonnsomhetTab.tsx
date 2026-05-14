@@ -13,6 +13,13 @@ interface Regnskap {
 
 interface Props {
   enheter: Enhet[];
+  theme: {
+    bg: string;
+    card: string;
+    border: string;
+    text: string;
+    textMuted: string;
+  };
 }
 
 function kalkulerLonnsomhet(inntekter: number, driftsresultat: number): "god" | "ok" | "lav" | "ingen" {
@@ -28,13 +35,13 @@ function fmt(n: number) {
 }
 
 const LONNSOMHET_CONFIG = {
-  god: { label: "God lønnsomhet", color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800" },
-  ok: { label: "Ok lønnsomhet", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800" },
-  lav: { label: "Lav lønnsomhet", color: "text-red-500", bg: "bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800" },
-  ingen: { label: "Ingen data", color: "text-gray-400", bg: "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700" },
+  god:  { label: "God lønnsomhet",  color: "#059669" },
+  ok:   { label: "Ok lønnsomhet",   color: "#d97706" },
+  lav:  { label: "Lav lønnsomhet",  color: "#dc2626" },
+  ingen:{ label: "Ingen data",      color: "#9ca3af" },
 };
 
-export default function LonnsomhetTab({ enheter }: Props) {
+export default function LonnsomhetTab({ enheter, theme }: Props) {
   const [regnskap, setRegnskap] = useState<Map<string, Regnskap>>(new Map());
   const [loading, setLoading] = useState(false);
   const [hentet, setHentet] = useState(false);
@@ -47,7 +54,6 @@ export default function LonnsomhetTab({ enheter }: Props) {
     setHentet(false);
     const resultat = new Map<string, Regnskap>();
     const batch = 10;
-
     for (let i = 0; i < enheter.length; i += batch) {
       const gruppe = enheter.slice(i, i + batch);
       await Promise.all(gruppe.map(async (e) => {
@@ -74,7 +80,6 @@ export default function LonnsomhetTab({ enheter }: Props) {
       setRegnskap(new Map(resultat));
       await new Promise(r => setTimeout(r, 100));
     }
-
     setLoading(false);
     setHentet(true);
   }
@@ -99,93 +104,87 @@ export default function LonnsomhetTab({ enheter }: Props) {
   function toggleFilter(key: string) {
     setAktivFilter(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       setPage(0);
       return next;
     });
   }
 
   const totalPages = Math.ceil(filtrert.length / PAGE_SIZE);
-  const slice = filtrert.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+
+  const s = {
+    card: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "1rem" },
+    table: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 12, overflow: "hidden" },
+    th: { backgroundColor: theme.bg, color: theme.textMuted, fontSize: 11, fontWeight: 500, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "10px 16px", textAlign: "left" as const },
+    td: { padding: "10px 16px", color: theme.text, fontSize: 14, borderTop: `1px solid ${theme.border}` },
+    btnGray: { backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 8, padding: "6px 12px", color: theme.text, fontSize: 14, cursor: "pointer" },
+  };
 
   return (
     <div>
       {!hentet && (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-sm mb-4">
+        <div style={{ textAlign: "center", padding: "48px 0" }}>
+          <p style={{ color: theme.textMuted, fontSize: 14, marginBottom: 16 }}>
             Henter regnskapstall for {enheter.length.toLocaleString("nb-NO")} bedrifter fra Brønnøysund
           </p>
-          <button
-            onClick={hentRegnskap}
-            disabled={loading}
-            className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-medium flex items-center gap-2 mx-auto"
-          >
-            {loading ? (
-              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Henter ({regnskap.size}/{enheter.length})...</>
-            ) : "Hent lønnsomhetstall"}
+          <button onClick={hentRegnskap} disabled={loading}
+            style={{ backgroundColor: "#059669", color: "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 500, cursor: "pointer", opacity: loading ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 8 }}>
+            {loading ? `Henter (${regnskap.size}/${enheter.length})...` : "Hent lønnsomhetstall"}
           </button>
         </div>
       )}
 
       {(hentet || regnskap.size > 0) && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
             {(["god", "ok", "lav", "ingen"] as const).map((key) => {
               const cfg = LONNSOMHET_CONFIG[key];
               const aktiv = aktivFilter.has(key);
               return (
-                <button
-                  key={key}
-                  onClick={() => toggleFilter(key)}
-                  className={`p-4 rounded-xl border text-left transition-all ${aktiv ? cfg.bg + " border-2" : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700"}`}
-                >
-                  <p className="text-xs text-gray-500 mb-1">{cfg.label}</p>
-                  <p className={`text-2xl font-medium ${cfg.color}`}>{counts[key].toLocaleString("nb-NO")}</p>
-                </button>
+                <div key={key} onClick={() => toggleFilter(key)} style={{
+                  ...s.card,
+                  cursor: "pointer",
+                  border: aktiv ? `2px solid ${cfg.color}` : `1px solid ${theme.border}`,
+                }}>
+                  <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 4 }}>{cfg.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 500, color: cfg.color }}>{counts[key].toLocaleString("nb-NO")}</div>
+                </div>
               );
             })}
           </div>
 
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-sm text-gray-500">{filtrert.length.toLocaleString("nb-NO")} bedrifter</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => downloadCSV(toCSV(filtrert), `${date}_lonnsomhet.csv`)}
-                className="px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-              >↓ CSV</button>
-              <button
-                onClick={() => downloadCSV(toCSV(filtrert, true), `${date}_lonnsomhet_meta.csv`)}
-                className="px-3 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
-              >↓ Meta</button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <span style={{ fontSize: 14, color: theme.textMuted }}>{filtrert.length.toLocaleString("nb-NO")} bedrifter</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => downloadCSV(toCSV(filtrert), `${date}_lonnsomhet.csv`)}
+                style={{ backgroundColor: "#059669", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ CSV</button>
+              <button onClick={() => downloadCSV(toCSV(filtrert, true), `${date}_lonnsomhet_meta.csv`)}
+                style={{ backgroundColor: "#2563eb", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 14, fontWeight: 500, cursor: "pointer" }}>↓ Meta</button>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-            <table className="w-full text-sm table-fixed">
-              <thead className="bg-gray-50 dark:bg-gray-800">
+          <div style={s.table}>
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              <thead>
                 <tr>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide w-[30%]">Navn</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide w-[18%]">Poststed</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide w-[15%]">Inntekter</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide w-[15%]">Driftsresultat</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wide w-[22%]">Lønnsomhet</th>
+                  {[["Navn","30%"],["Poststed","18%"],["Inntekter","15%"],["Driftsresultat","15%"],["Lønnsomhet","22%"]].map(([h, w]) => (
+                    <th key={h} style={{ ...s.th, width: w }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-                {slice.map((e, i) => {
+              <tbody>
+                {filtrert.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((e, i) => {
                   const r = regnskap.get(e.orgnr);
                   const cfg = LONNSOMHET_CONFIG[r?.lonnsomhet ?? "ingen"];
                   return (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100 truncate" title={e.navn}>{e.navn}</td>
-                      <td className="px-4 py-2.5 text-gray-500 truncate">{e.postnummer} {e.poststed}</td>
-                      <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{r ? fmt(r.inntekter) : "—"}</td>
-                      <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{r ? fmt(r.driftsresultat) : "—"}</td>
-                      <td className="px-4 py-2.5">
-                        <span className={`text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
-                      </td>
+                    <tr key={i} onMouseEnter={ev => (ev.currentTarget.style.backgroundColor = theme.bg)}
+                      onMouseLeave={ev => (ev.currentTarget.style.backgroundColor = "transparent")}>
+                      <td style={{ ...s.td, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={e.navn}>{e.navn}</td>
+                      <td style={{ ...s.td, color: theme.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.postnummer} {e.poststed}</td>
+                      <td style={{ ...s.td, color: theme.textMuted }}>{r ? fmt(r.inntekter) : "—"}</td>
+                      <td style={{ ...s.td, color: theme.textMuted }}>{r ? fmt(r.driftsresultat) : "—"}</td>
+                      <td style={s.td}><span style={{ fontSize: 13, fontWeight: 500, color: cfg.color }}>{cfg.label}</span></td>
                     </tr>
                   );
                 })}
@@ -193,12 +192,12 @@ export default function LonnsomhetTab({ enheter }: Props) {
             </table>
           </div>
 
-          <div className="flex items-center justify-between mt-4">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-40">← Forrige</button>
-            <span className="text-sm text-gray-500">Side {page + 1} av {Math.max(1, totalPages)}</span>
+              style={{ ...s.btnGray, opacity: page === 0 ? 0.4 : 1 }}>← Forrige</button>
+            <span style={{ fontSize: 14, color: theme.textMuted }}>Side {page + 1} av {Math.max(1, totalPages)}</span>
             <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-              className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-40">Neste →</button>
+              style={{ ...s.btnGray, opacity: page >= totalPages - 1 ? 0.4 : 1 }}>Neste →</button>
           </div>
         </>
       )}
