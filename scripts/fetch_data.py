@@ -4,9 +4,11 @@ import json
 import os
 import io
 import gzip
+import time
 from datetime import datetime
 
 LASTNED_URL = "https://data.brreg.no/enhetsregisteret/api/enheter/lastned/csv"
+REGNSKAP_URL = "https://data.brreg.no/regnskapsregisteret/regnskap/{}"
 
 FYLKENAVN = {
     "03":"Oslo","11":"Rogaland","15":"Møre og Romsdal","18":"Nordland",
@@ -61,6 +63,59 @@ def last_ned_alle():
     print(f"  ✓ {len(enheter):,} enheter lastet ned")
     return enheter
 
+def hent_regnskap_batch(orgnumre, batch_size=20):
+    """Henter regnskapstall for en liste med orgnumre."""
+    resultat = {}
+    total = len(orgnumre)
+    
+    for i in range(0, total, batch_size):
+        batch = orgnumre[i:i+batch_size]
+        for orgnr in batch:
+            try:
+                r = requests.get(
+                    REGNSKAP_URL.format(orgnr),
+                    timeout=15,
+                    headers={"Accept": "application/json"}
+                )
+                if not r.ok:
+                    continue
+                data = r.json()
+                items = data if isinstance(data, list) else [data]
+                if not items:
+                    continue
+                siste = sorted(items, key=lambda x: x.get("regnskapsperiode", {}).get("fraDato", ""), reverse=True)[0]
+                inntekter = siste.get("resultatregnskapResultat", {}).get("driftsresultat", {}).get("driftsinntekter", {}).get("sumDriftsinntekter") or 0
+                driftsresultat = siste.get("resultatregnskapResultat", {}).get("driftsresultat", {}).get("driftsresultat") or 0
+                aarsresultat = siste.get("resultatregnskapResultat", {}).get("aarsresultat") or 0
+                aar = (siste.get("regnskapsperiode", {}).get("fraDato") or "")[:4]
+                
+                if inntekter > 0:
+                    margin = driftsresultat / inntekter
+                    if margin > 0.1:
+                        lonnsomhet = "god"
+                    elif margin >= 0:
+                        lonnsomhet = "ok"
+                    else:
+                        lonnsomhet = "lav"
+                else:
+                    lonnsomhet = "ingen"
+                
+                resultat[orgnr] = {
+                    "aar": aar,
+                    "inntekter": inntekter,
+                    "driftsresultat": driftsresultat,
+                    "aarsresultat": aarsresultat,
+                    "lonnsomhet": lonnsomhet,
+                }
+            except Exception:
+                continue
+            time.sleep(0.05)
+        
+        if i % 500 == 0:
+            print(f"    Regnskap: {min(i+batch_size, total):,}/{total:,}...", flush=True)
+    
+    return resultat
+
 def parse_enhet(e):
     kommnr = str(e.get("forretningsadresse.kommunenummer", "") or "")
     fylkekode = kommnr[:2] if kommnr else ""
@@ -82,6 +137,7 @@ def parse_enhet(e):
         "fylkekode": fylkekode,
         "nace": nace_kode,
         "kategori": get_nace_kategori(nace_kode),
+        "regnskap": None,
     }
 
 def main():
@@ -91,13 +147,13 @@ def main():
     alle = last_ned_alle()
 
     segmenter = {
-        "ENK":  {"form": ["ENK"], "fra": None, "til": None},
-        "SMB":  {"form": ["AS","ANS","DA","NUF"], "fra": 1, "til": 49},
-        "MID":  {"form": ["AS","ANS","NUF"], "fra": 50, "til": 200},
-        "STOR": {"form": ["AS","ANS","NUF"], "fra": 201, "til": None},
+        "ENK":  {"form": ["ENK"],                 "fra": None, "til": None, "regnskap": False},
+        "SMB":  {"form": ["AS","ANS","DA","NUF"],  "fra": 1,   "til": 49,  "regnskap": True},
+        "MID":  {"form": ["AS","ANS","NUF"],       "fra": 50,  "til": 200, "regnskap": True},
+        "STOR": {"form": ["AS","ANS","NUF"],       "fra": 201, "til": None,"regnskap": True},
     }
 
-    print("\nSegmenterer...")
+    print("\nSegmenterer og henter regnskap...")
     for key, cfg in segmenter.items():
         resultat = []
         for e in alle:
@@ -119,11 +175,22 @@ def main():
                 continue
             resultat.append(parse_enhet(e))
 
+        print(f"\n▶ {key}: {len(resultat):,} enheter")
+
+        if cfg["regnskap"] and resultat:
+            print(f"  Henter regnskapstall...")
+            orgnumre = [e["orgnr"] for e in resultat]
+            regnskap_data = hent_regnskap_batch(orgnumre)
+            for e in resultat:
+                e["regnskap"] = regnskap_data.get(e["orgnr"])
+            med_regnskap = sum(1 for e in resultat if e["regnskap"])
+            print(f"  ✓ Regnskap hentet for {med_regnskap:,} av {len(resultat):,}")
+
         out = {"oppdatert": ts, "antall": len(resultat), "enheter": resultat}
         path = f"data/{key}.json"
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-        print(f"  ✓ {key}: {len(resultat):,} enheter → {path}")
+        print(f"  → {path} lagret")
 
     print("\n✓ Ferdig!")
 
